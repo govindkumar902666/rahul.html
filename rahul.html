@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dress Shop Pro</title>
+
+  <!-- EMAILJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    (function(){
+      emailjs.init("YOUR_PUBLIC_KEY_HERE"); // 👈 EmailJS Public Key
+    })();
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Arial, sans-serif; background:#f4f6f8; }
+    header { background:#0d6efd; color:#fff; padding:15px; display:flex; justify-content:space-between; flex-wrap:wrap; }
+    header h1 { margin:0; }
+    header button { background:#ffc107; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; }
+    .container { max-width:1200px; margin:auto; padding:20px; }
+
+    .products { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px; }
+    .product { background:#fff; padding:15px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,.1); text-align:center; }
+    .product img { width:100%; height:200px; object-fit:cover; border-radius:8px; }
+    .product button { width:100%; padding:10px; background:#198754; color:#fff; border:none; border-radius:5px; cursor:pointer; }
+
+    .cart,.admin,.payment { background:#fff; margin-top:30px; padding:20px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,.1); }
+    .cart-item { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:10px 0; }
+    .qty-btn { padding:5px 10px; margin:0 5px; }
+
+    input,select { width:100%; padding:10px; margin:5px 0; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Dress Shop Pro</h1>
+  <button onclick="toggleAdmin()">Admin Panel</button>
+</header>
+
+<div class="container">
+
+  <!-- PRODUCTS -->
+  <div class="products" id="productList"></div>
+
+  <!-- CART -->
+  <div class="cart">
+    <h2>Shopping Cart</h2>
+    <div id="cartItems"></div>
+    <h3 id="total">Total: ₹0</h3>
+    <button onclick="showPayment()">Proceed to Payment</button>
+  </div>
+
+  <!-- PAYMENT -->
+  <div class="payment hidden" id="payment">
+    <h2>Payment</h2>
+    <select id="payMethod">
+      <option>Cash on Delivery</option>
+      <option>UPI</option>
+      <option>Debit / Credit Card</option>
+    </select>
+    <button onclick="placeOrder()">Confirm Order</button>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div class="admin hidden" id="admin">
+    <h2>Admin Panel</h2>
+    <input id="pname" placeholder="Product Name" />
+    <input id="pprice" type="number" placeholder="Price" />
+    <input id="pimg" placeholder="Image URL" />
+    <button onclick="addProduct()">Add Product</button>
+  </div>
+
+</div>
+
+<script>
+  let products = JSON.parse(localStorage.getItem('products')) || [
+    {name:'Casual Dress',price:1999,img:'https://via.placeholder.com/300?text=Casual'},
+    {name:'Party Dress',price:2499,img:'https://via.placeholder.com/300?text=Party'}
+  ];
+
+  let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+  function renderProducts(){
+    const div=document.getElementById('productList');
+    div.innerHTML='';
+    products.forEach((p,i)=>{
+      div.innerHTML+=`<div class="product"><img src="${p.img}"><h3>${p.name}</h3><p>₹${p.price}</p><button onclick="addToCart(${i})">Add</button></div>`;
+    });
+  }
+
+  function addToCart(i){
+    const item=products[i];
+    const found=cart.find(c=>c.name===item.name);
+    if(found) found.qty++;
+    else cart.push({...item,qty:1});
+    save(); renderCart();
+  }
+
+  function renderCart(){
+    let div=document.getElementById('cartItems'); div.innerHTML=''; let total=0;
+    cart.forEach((c,i)=>{ total+=c.price*c.qty;
+      div.innerHTML+=`<div class="cart-item">${c.name} ₹${c.price*c.qty}
+      <div><button class="qty-btn" onclick="changeQty(${i},-1)">-</button>${c.qty}<button class="qty-btn" onclick="changeQty(${i},1)">+</button></div></div>`;
+    });
+    document.getElementById('total').innerText='Total: ₹'+total;
+  }
+
+  function changeQty(i,val){ cart[i].qty+=val; if(cart[i].qty<=0) cart.splice(i,1); save(); renderCart(); }
+  function save(){ localStorage.setItem('cart',JSON.stringify(cart)); localStorage.setItem('products',JSON.stringify(products)); }
+
+  function toggleAdmin(){ document.getElementById('admin').classList.toggle('hidden'); }
+  function addProduct(){ products.push({name:pname.value,price:+pprice.value,img:pimg.value}); save(); renderProducts(); }
+
+  function showPayment(){ document.getElementById('payment').classList.remove('hidden'); }
+
+  function placeOrder(){
+    if(cart.length===0){ alert('Cart is empty'); return; }
+
+    const orderText = cart.map(c=>`${c.name} x ${c.qty} = ₹${c.price*c.qty}`).join('\n');
+    const totalAmount = document.getElementById('total').innerText.replace('Total: ','');
+
+    emailjs.send(
+      "service_govind",          // 👈 Service ID
+      "template_order",         // 👈 Template ID
+      {
+        order: orderText,
+        total: totalAmount,
+        payment: document.getElementById('payMethod').value,
+        date: new Date().toLocaleString()
+      }
+    ).then(()=>{
+      alert('✅ Order placed & Email sent successfully!');
+      cart=[]; save(); renderCart();
+      document.getElementById('payment').classList.add('hidden');
+    },()=>{
+      alert('❌ Email failed. Check EmailJS settings');
+    });
+  }
+
+  renderProducts(); renderCart();
+</script>
+
+</body>
+</html>
